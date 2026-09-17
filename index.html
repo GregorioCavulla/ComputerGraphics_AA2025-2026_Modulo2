@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Computer Graphics — Modulo 2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(18, 24, 38, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --cyan: #38bdf8;
+      --indigo: #818cf8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Canvas geometrico di sfondo */
+    #canvas-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    /* Contenitore centrale */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 720px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--cyan);
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 0.35rem 0.9rem;
+      border-radius: 9999px;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.03em;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4.5vw, 3rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.6rem;
+      background: linear-gradient(135deg, #ffffff 40%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .author {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      margin-bottom: 3rem;
+    }
+
+    /* Griglia con i due bottoni card */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 2.5rem;
+    }
+
+    @media (max-width: 580px) {
+      .actions-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .action-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .action-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top, var(--glow-color, rgba(56, 189, 248, 0.15)), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .action-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--hover-border, var(--cyan));
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .action-card:hover::before {
+      opacity: 1;
+    }
+
+    .action-card.project {
+      --hover-border: rgba(56, 189, 248, 0.5);
+      --glow-color: rgba(56, 189, 248, 0.18);
+    }
+
+    .action-card.doc {
+      --hover-border: rgba(129, 140, 248, 0.5);
+      --glow-color: rgba(129, 140, 248, 0.18);
+    }
+
+    .icon-box {
+      width: 54px;
+      height: 54px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      transition: transform 0.25s ease;
+    }
+
+    .action-card:hover .icon-box {
+      transform: scale(1.08);
+    }
+
+    .project .icon-box {
+      color: var(--cyan);
+    }
+
+    .doc .icon-box {
+      color: var(--indigo);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .card-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Footer link */
+    .repo-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .repo-link:hover {
+      color: var(--cyan);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sfondo wireframe animato -->
+  <canvas id="canvas-bg"></canvas>
+
+  <div class="wrapper">
+    <div class="badge">A.A. 2025 / 2026 • Modulo 2</div>
+    <h1>Computer Graphics</h1>
+    <p class="author">Gregorio Cavulla</p>
+
+    <div class="actions-grid">
+      <!-- Tasto 1: Progetto -->
+      <a href="./project/index.html" class="action-card project">
+        <div class="icon-box">
+          <!-- Icona 3D Cube -->
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+          </svg>
+        </div>
+        <div class="card-title">Progetto</div>
+        <div class="card-desc">Visualizzatore 3D &amp; scena interattiva</div>
+      </a>
+
+      <!-- Tasto 2: Documentazione -->
+      <a href="./doc/index.html" class="action-card doc">
+        <div class="icon-box">
+          <!-- Icona Documento -->
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </div>
+        <div class="card-title">Documentazione</div>
+        <div class="card-desc">Relazione tecnica e note di progetto</div>
+      </a>
+    </div>
+
+    <div>
+      <a href="https://github.com/GregorioCavulla/ComputerGraphics_AA2025-2026_Modulo2" target="_blank" rel="noopener noreferrer" class="repo-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+        </svg>
+        Apri su GitHub
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Semplice sfondo a nodi/costellazione interattivo col mouse
+    const canvas = document.getElementById('canvas-bg');
+    const ctx = canvas.getContext('2d');
+    let w, h, nodes = [];
+    const mouse = { x: null, y: null };
+
+    function init() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      nodes = [];
+      const count = Math.floor((w * h) / 22000);
+      for (let i = 0; i < count; i++) {
+        nodes.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 0.45,
+          vy: (Math.random() - 0.5) * 0.45,
+          radius: Math.random() * 1.5 + 1
+        });
+      }
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, w, h);
+
+      for (let i = 0; i < nodes.length; i++) {
+        let n = nodes[i];
+        n.x += n.vx;
+        n.y += n.vy;
+
+        if (n.x < 0 || n.x > w) n.vx *= -1;
+        if (n.y < 0 || n.y > h) n.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.45)';
+        ctx.fill();
+
+        for (let j = i + 1; j < nodes.length; j++) {
+          let n2 = nodes[j];
+          let dist = Math.hypot(n.x - n2.x, n.y - n2.y);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(n.x, n.y);
+            ctx.lineTo(n2.x, n2.y);
+            ctx.strokeStyle = `rgba(56, 189, 248, ${0.12 * (1 - dist / 120)})`;
+            ctx.stroke();
+          }
+        }
+      }
+      requestAnimationFrame(render);
+    }
+
+    window.addEventListener('resize', init);
+    window.addEventListener('mousemove', (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    });
+
+    init();
+    render();
+  </script>
+</body>
+</html>
