@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentazione | Porygon-Z Benchmark</title>
+<style>
+	:root {
+		--bg: #071116;
+		--panel: #0d1d23;
+		--ink: #e4fff8;
+		--muted: #8cbdb2;
+		--aqua: #68f2d0;
+		--yellow: #fff06a;
+		--hot: #ff4978;
+		--line: #235f5d;
+	}
+	* { box-sizing: border-box; }
+	html { background: var(--bg); color: var(--ink); font-family: "Trebuchet MS", "Aptos", sans-serif; line-height: 1.58; }
+	body { margin: 0; background: radial-gradient(circle at 50% 0, #153841 0, var(--bg) 46%, #03070a 100%); }
+	main { width: min(980px, calc(100vw - 32px)); margin: 0 auto; padding: 48px 0 72px; }
+	header { padding: 28px 0 22px; border-bottom: 1px solid var(--line); }
+	h1, h2, h3 { line-height: 1.15; }
+	h1 { margin: 0; color: var(--aqua); font-size: clamp(2rem, 5vw, 4.2rem); letter-spacing: .04em; text-transform: uppercase; }
+	h2 { margin: 42px 0 12px; color: var(--yellow); font-size: 1.45rem; }
+	h3 { margin: 24px 0 8px; color: var(--aqua); font-size: 1.05rem; }
+	p { margin: 0 0 14px; color: var(--ink); }
+	a { color: var(--aqua); }
+	code, pre { font-family: "Courier New", monospace; }
+	code { color: var(--yellow); }
+	pre { overflow: auto; padding: 16px; border: 1px solid var(--line); background: rgba(4, 16, 20, .8); }
+	ul { padding-left: 22px; }
+	li { margin: 7px 0; }
+	.lead { max-width: 780px; margin-top: 14px; color: var(--muted); font-size: 1.08rem; }
+	.panel { margin: 18px 0; padding: 18px; border: 1px solid var(--line); background: color-mix(in srgb, var(--panel), transparent 12%); }
+	.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+	.tag { display: inline-block; margin: 0 8px 8px 0; padding: 4px 8px; border: 1px solid rgba(104, 242, 208, .35); color: var(--aqua); font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
+	.formula { color: var(--yellow); font-size: 1.05rem; }
+</style>
+</head>
+<body>
+<main>
+	<header>
+		<h1>Porygon-Z Benchmark</h1>
+		<p class="lead">Benchmark grafico interattivo realizzato con Three.js r160 locale, moduli ES6 nativi e asset GLB serviti staticamente. Il progetto confronta lo stesso sciame misto Pokemon renderizzato prima in modo naive e poi con <code>InstancedMesh</code>.</p>
+	</header>
+
+	<section>
+		<h2>Obiettivo</h2>
+		<p>Il progetto nasce da una demo di caricamento modelli e viene trasformato in un benchmark reale. La pagina iniziale mostra una Pokeball nella stessa scena 3D usata dai test; il click avvia una sequenza automatica che cerca il limite sostenibile della macchina, invece di fermarsi a pochi checkpoint fissi.</p>
+		<p>Lo sciame cresce in modo progressivo: parte dalla Pokeball, poi aggiunge Porygon, Porygon2 e Porygon-Z. La stessa composizione viene misurata due volte, prima con copie reali nel scene graph e poi con instancing.</p>
+	</section>
+
+	<section>
+		<h2>Architettura</h2>
+		<div class="grid">
+			<div class="panel"><h3>Core</h3><p><code>Renderer.js</code> crea renderer, camera, luci, pavimento, griglia e fog. <code>AssetLoader.js</code> carica e normalizza i GLB. <code>Stats.js</code> raccoglie FPS, draw call, triangoli e limiti misurati.</p></div>
+			<div class="panel"><h3>Benchmark</h3><p><code>BenchmarkController.js</code> orchestra le fasi, la crescita progressiva, il warm-up, la misura e la ricerca binaria del limite. <code>MixedBenchmark.js</code> costruisce lo stesso sciame misto in modalita' naive e instanced.</p></div>
+			<div class="panel"><h3>Sciame e UI</h3><p><code>PorygonSwarm.js</code> gestisce copie naive e <code>InstancedMesh</code>. <code>StartOverlay.js</code> controlla l'avvio, <code>DataPanel.js</code> aggiorna i dati a bassa frequenza, separato dal loop WebGL.</p></div>
+			<div class="panel"><h3>Scena finale</h3><p><code>ResultsPileScene.js</code> visualizza pile in scala: prima due risultati simple, poi quattro risultati dopo il test full.</p></div>
+		</div>
+	</section>
+
+	<section>
+		<h2>Asset e pubblicazione</h2>
+		<p>I quattro GLB runtime sono:</p>
+		<ul>
+			<li><code>project/assets/p1/p1.glb</code></li>
+			<li><code>project/assets/p2/p2.glb</code></li>
+			<li><code>project/assets/pz/pz.glb</code></li>
+			<li><code>project/assets/pokeball/pokeball.glb</code></li>
+		</ul>
+		<p>Prima della pulizia e' stato letto il chunk JSON dei GLB: le immagini non sono referenziate come URI esterni, ma incorporate nei binari come bufferView PNG. Per questo i file sorgente di Blender/Sketchfab, gli zip, i blend e gli atlas sciolti sono stati nascosti con prefisso punto senza cancellarli.</p>
+		<p>Non ci sono CDN, backend o build step. Import map, moduli e asset usano percorsi relativi, quindi il progetto puo' essere servito sia con <code>python3 -m http.server</code> sia da GitHub Pages in una sotto-cartella del repository.</p>
+	</section>
+
+	<section>
+		<h2>Metodologia di misura</h2>
+		<p>Ogni step scarta un breve warm-up e misura FPS, millisecondi per frame, draw call e triangoli su una finestra separata. Il pannello HTML non viene aggiornato a ogni frame: usa un timer indipendente a bassa frequenza, cosi' il benchmark non misura soprattutto la propria UI.</p>
+		<div class="panel">
+			<span class="tag">Warm-up</span>
+			<span class="tag">Finestra FPS</span>
+			<span class="tag">Draw call</span>
+			<span class="tag">Triangoli</span>
+			<span class="tag">p10 FPS</span>
+		</div>
+		<p>Il controller cerca direttamente il limite fluido vicino a 60 FPS. Per considerare stabile un valore usa sia la media sia il decimo percentile: la media deve restare circa sopra 60 FPS e il p10 sopra 54 FPS, cosi' piccoli picchi isolati non falsano il risultato.</p>
+	</section>
+
+	<section>
+		<h2>Ricerca adattiva del limite</h2>
+		<p>Il benchmark non usa piu' un numero fisso di copie. Per ogni fase parte da un valore iniziale, cresce in modo moltiplicativo finche' trova il primo valore instabile, poi usa una ricerca binaria tra ultimo valore stabile e primo instabile.</p>
+		<pre><code>24 copie  -> stabile
+44 copie  -> stabile
+81 copie  -> stabile
+150 copie -> stabile
+278 copie -> instabile
+binary search tra 150 e 278
+limite finale: massimo valore stabile vicino a 60 FPS</code></pre>
+		<p>Questo approccio si adatta alla macchina: su un computer debole si ferma prima, su una GPU potente continua fino al limite massimo di sicurezza definito per la fase.</p>
+	</section>
+
+	<section>
+		<h2>Test naive</h2>
+		<p>Il test naive usa copie reali di Pokeball, Porygon, Porygon2 e Porygon-Z. Ogni copia e' un oggetto nel scene graph e viene aggiornata nello sciame elicoidale. Questo aumenta il costo lato JavaScript/Three.js: attraversamento della scena, aggiornamento matrici, draw call e gestione di molti oggetti separati.</p>
+		<p>Per mantenere il confronto leggibile, questa fase usa un profilo grafico leggero: shadow map disattivata, pixel ratio fissato a 1 e materiali <code>MeshBasicMaterial</code> generati dai materiali originali. I modelli mantengono colore/texture principale, ma senza il costo delle luci PBR e delle ombre.</p>
+	</section>
+
+	<section>
+		<h2>Test instanced</h2>
+		<p>Il test instanced usa la stessa progressione e gli stessi modelli, ma crea gruppi di <code>InstancedMesh</code> per ciascun modello e per ciascuna mesh/materiale interna. Le draw call restano molto piu' basse, mentre il numero di modelli visibili puo' crescere molto di piu'.</p>
+		<p>Il benchmark parte sempre dal profilo simple: materiali semplici, niente ombre e luce stabile, utile per isolare il confronto naive/instanced. Dopo i primi risultati la pagina propone il test full, che usa materiali PBR originali, ombre, luci piu' ricche, pavimento glossy, environment map procedurale e luce orbitante. La scelta della GPU resta al browser e al sistema operativo.</p>
+	</section>
+
+	<section>
+		<h2>Sciame elicoidale e spazio</h2>
+		<p>Le copie non sono piu' disposte in una griglia piatta. La posizione dipende dall'indice e dal tempo:</p>
+		<p class="formula">x = cos(angle) * radius, z = sin(angle) * radius, y = altezza progressiva + bob sinusoidale</p>
+		<p>Questo produce uno sciame che ruota verso l'alto e rende visibile il carico anche con molte istanze. La disposizione usa celle angolari/verticali con una distanza minima configurabile, cosi' i modelli non vengono piazzati nello stesso volume regolare della spirale. Il pavimento e' volutamente molto grande: il fog esponenziale nasconde i confini lontani e lascia chiaro il volume centrale dello sciame.</p>
+	</section>
+
+	<section>
+		<h2>Pile finali</h2>
+		<p>Dopo il test simple la scena mostra due pile affiancate: <code>naive simple</code> e <code>instanced simple</code>. Un pulsante permette poi di eseguire il test full; al termine la scena mostra quattro pile: <code>naive simple</code>, <code>instanced simple</code>, <code>naive full</code> e <code>instanced full</code>.</p>
+		<p>Ogni pila rappresenta il numero reale di modelli sostenibili a circa 60 FPS. Il numero reale e' scritto sopra alla pila; il numero di modelli disegnati nella scena finale e' in scala e limitato a un massimo visivo, per evitare che la visualizzazione del risultato diventi un nuovo benchmark.</p>
+		<p>La visualizzazione finale ha uno switch simple/full: in simple usa luce stabile e materiali piu' leggeri; in full usa ombre, materiali PBR, riflessi e luce orbitante. Le pile sono comunque renderizzate con <code>InstancedMesh</code> per contenere il numero di draw call.</p>
+		<p>I modelli vengono animati come se cadessero dall'alto, ma la non compenetrazione e' garantita dal layout finale a strati concentrici. In questo modo l'effetto visivo ricorda la gravita' senza introdurre una simulazione fisica costosa e non necessaria.</p>
+	</section>
+
+	<section>
+		<h2>Confronto</h2>
+		<p>Il confronto principale e' dato dai quattro numeri scritti sopra le pile. Lo speedup simple misura il guadagno dell'instancing senza ombre; lo speedup full misura quanto l'instancing aiuta quando sono attivi materiali PBR, ombre e luce orbitante.</p>
+		<pre><code>score = 1000 * (
+	0.34 * log2(1 + limite_naive)
+  + 0.46 * log2(1 + limite_instanced)
+  + 0.15 * log2(1 + speedup_60fps)
+  + 0.15 * stabilita
+) - penalita_tempi</code></pre>
+		<p>Il pannello HUD durante il benchmark resta volutamente ridotto: fase, FPS, millisecondi per frame, draw call, triangoli e istanze. I dati piu' importanti vengono comunicati nella scena finale, direttamente sopra le pile.</p>
+	</section>
+
+	<section>
+		<h2>Controlli finali</h2>
+		<p>Dopo il benchmark la camera resta controllabile con OrbitControls, cosi' si possono osservare le pile e confrontare visivamente quanto cambia il risultato tra naive, instanced, simple e full.</p>
+	</section>
+</main>
+</body>
+</html>
