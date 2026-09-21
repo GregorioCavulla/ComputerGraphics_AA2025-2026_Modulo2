@@ -311,7 +311,7 @@ Limite Finale Rilevato: 214 copie al target costante di 60 FPS</code></pre>
 		<p>Il benchmark articola il confronto su due profili grafici:</p>
 		<ul>
 			<li><strong>Simple Profile:</strong> ombre spente, pixel ratio ancorato a 1, materiali <code>MeshBasicMaterial</code> (nessun calcolo di illuminazione complessa), ideale per isolare l'overhead dell'architettura Three.js e delle draw calls.</li>
-			<li><strong>Full Profile:</strong> pipeline completa con materiali PBR fotorealistici, ombre dinamiche calcolate con Shadow Map, riflessioni su pavimento speculare ed environment map procedurale.</li>
+			<li><strong>Full Profile:</strong> pipeline completa con materiali PBR fotorealistici, ombre dinamiche calcolate con Shadow Map, pavimento opaco con griglia procedurale ed environment map procedurale per i riflessi dei modelli.</li>
 		</ul>
 	</section>
 
@@ -329,25 +329,12 @@ Limite Finale Rilevato: 214 copie al target costante di 60 FPS</code></pre>
 		<p>Uno scattering spaziale a celle angolari/verticali previene sovrapposizioni compenetrate, mentre la nebbia esponenziale sul piano delimitato focalizza l'attenzione sul nucleo dell'azione.</p>
 
 		<h3>Le Pile dei Risultati</h3>
-		<p>Al completamento del benchmark, la scena ricompone i valori massimi registrati sotto forma di pile di modelli che cadono dall'alto:</p>
+		<p>Al completamento del benchmark, la scena ricompone i valori massimi registrati sotto forma di pile di modelli posizionate direttamente a terra, con un'ombra proiettata correttamente sotto ciascuna istanza:</p>
 		<ul>
 			<li><strong>Fine Test Simple:</strong> due pile affiancate (<em>Naive Simple</em> vs <em>Instanced Simple</em>).</li>
 			<li><strong>Fine Test Full:</strong> quattro pile complessive per apprezzare l'impatto dei materiali PBR e delle luci dinamiche su entrambi gli approcci.</li>
 		</ul>
-		<p>Il conteggio reale viene mostrato fluttuante sopra ciascuna colonna, mentre la quantità geometrica fisica disegnata è normalizzata per non saturare la GPU durante la sola visualizzazione dei risultati.</p>
-	</section>
-
-	<!-- SEZIONE 8: METRICA E SCORE FINALE -->
-	<section>
-		<h2>8. Metrica di Valutazione Finale</h2>
-		<p>Il report complessivo sintetizza la capacità di rendering attraverso una formula di score logaritmica pesata:</p>
-		<pre><code>Score = 1000 * (
-    0.34 * log2(1 + limite_naive)
-  + 0.46 * log2(1 + limite_instanced)
-  + 0.15 * log2(1 + speedup_60fps)
-  + 0.15 * fattore_stabilita
-) - penalita_tempi</code></pre>
-		<p>Al termine del ciclo di benchmark, la camera si sblocca in modalità <code>OrbitControls</code>, consentendo all'utente di esaminare liberamente le pile dei Pokémon, l'impatto visivo delle mesh ottimizzate e la reattività del rendering 3D.</p>
+		<p>Il conteggio reale viene mostrato fluttuante sopra ciascuna colonna, mentre la quantità geometrica fisica disegnata è normalizzata per non saturare la GPU durante la sola visualizzazione dei risultati. Al termine del ciclo di benchmark, la camera si sblocca in modalità <code>OrbitControls</code>, consentendo all'utente di esaminare liberamente le pile dei Pokémon, l'impatto visivo delle mesh ottimizzate e la reattività del rendering 3D.</p>
 	</section>
 </main>
 </body>

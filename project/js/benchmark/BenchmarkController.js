@@ -3,7 +3,6 @@ import { MixedBenchmark } from './MixedBenchmark.js';
 const WARMUP_MS = 450;
 const MEASURE_MS = 900;
 const RAMP_MS = 550;
-const STOP_FPS = 60;
 const TARGET_FPS = 60;
 const LOW_FPS_WINDOWS = 1;
 const REFINE_ATTEMPTS = 4;
@@ -151,7 +150,7 @@ export class BenchmarkController {
         this.stepIndex = 0;
         if (this.phaseIndex >= this.phases.length) {
             this.running = false;
-            this.stats.setScore(calculateScore(this.results, this.stats.assetLoadMs, this.stats.shaderCompileMs));
+            this.stats.setScore({ piles: buildPiles(this.results) });
             this.onComplete(this.results, this.options.benchmarkMode);
             return;
         }
@@ -172,68 +171,13 @@ function phasesFor(benchmarkMode) {
     ];
 }
 
-function calculateScore(results, assetLoadMs, shaderCompileMs) {
-    const piles = ['naive simple', 'instanced simple', 'naive full', 'instanced full']
+function buildPiles(results) {
+    return ['naive simple', 'instanced simple', 'naive full', 'instanced full']
         .map((label) => ({ label, count: bestStable60ByPhase(results, label).count }));
-    const simpleSpeedup = ratio(piles[1].count, piles[0].count);
-    const fullSpeedup = ratio(piles[3].count, piles[2].count);
-    const stability = averageStability(results);
-    const penalty = (assetLoadMs / 1000) * 2 + (shaderCompileMs / 1000) * 4;
-    const value = Math.max(0, Math.round(1000 * (
-        0.26 * Math.log2(1 + piles[0].count)
-        + 0.34 * Math.log2(1 + piles[1].count)
-        + 0.18 * Math.log2(1 + piles[3].count)
-        + 0.12 * Math.log2(1 + simpleSpeedup + fullSpeedup)
-        + 0.15 * stability
-    ) - penalty));
-    return {
-        value,
-        rank: rankFor(value),
-        piles,
-        naiveLimit: piles[0].count,
-        instancedLimit: piles[1].count,
-        naive60Limit: piles[0].count,
-        instanced60Limit: piles[1].count,
-        simpleSpeedup,
-        fullSpeedup,
-        speedup60: simpleSpeedup,
-        stability,
-        penalty,
-    };
-}
-
-function ratio(numerator, denominator) {
-    return denominator > 0 ? numerator / denominator : 0;
 }
 
 function bestStable60ByPhase(results, phase) {
     return results
         .filter((item) => item.phase === phase && item.stable60)
         .sort((a, b) => b.count - a.count)[0] ?? { count: 0 };
-}
-
-function bestStable60(results, kind, mode) {
-    return results
-        .filter((item) => item.kind === kind && item.mode === mode && item.stable60)
-        .sort((a, b) => b.count - a.count)[0] ?? { count: 0 };
-}
-
-function bestStable(results, kind, mode) {
-    return results
-        .filter((item) => item.kind === kind && item.mode === mode && item.stable)
-        .sort((a, b) => b.count - a.count)[0] ?? { count: 0 };
-}
-
-function averageStability(results) {
-    const stable = results.filter((item) => item.stable);
-    if (!stable.length) return 0;
-    return stable.reduce((sum, item) => sum + Math.min(1.2, item.lowFps / STOP_FPS), 0) / stable.length;
-}
-
-function rankFor(score) {
-    if (score >= 18000) return 'Porygon-Z Ultra';
-    if (score >= 14500) return 'Porygon-Z Pro';
-    if (score >= 11000) return 'Porygon2 Plus';
-    if (score >= 8000) return 'Porygon Stable';
-    return 'Pokeball Ready';
 }
