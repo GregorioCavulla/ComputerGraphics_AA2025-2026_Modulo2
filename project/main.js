@@ -6,6 +6,8 @@ import { PorygonSwarm } from './js/swarm/PorygonSwarm.js';
 import { StartOverlay } from './js/ui/StartOverlay.js';
 import { DataPanel } from './js/ui/DataPanel.js';
 import { ResultsPileScene } from './js/scene/ResultsPileScene.js';
+import { ShadowDebug } from './js/debug/ShadowDebug.js';
+import { PhaseSelector } from './js/debug/PhaseSelector.js';
 
 const app = new AppRenderer(document.body);
 const stats = new Stats(app.renderer);
@@ -17,6 +19,7 @@ const resultsControls = document.getElementById('results-controls');
 const finalModeSelect = resultsControls.querySelector('[data-final-mode]');
 const runFullButton = resultsControls.querySelector('[data-run-full]');
 
+const shadowDebug = ShadowDebug.requested() ? new ShadowDebug(app) : null;
 let introModel = null;
 let resultsPile = null;
 let runOptions = { benchmarkMode: 'simple', finalFull: true };
@@ -38,6 +41,7 @@ try {
 
     introModel = loader.createModel('pokeball', { heightScale: 0.62 });
     app.dynamic.add(introModel);
+    app.setIntroCamera();
     stats.setShaderCompileTime(app.lastCompileMs);
     stats.setPhase('Pronto', 1, 'Pokeball iniziale');
     overlay.show(() => startBenchmark());
@@ -62,6 +66,7 @@ function startBenchmark(options) {
         app.dynamic.remove(introModel);
         introModel = null;
     }
+    app.setBenchmarkCamera();
     controller.start(runOptions);
 }
 
@@ -100,6 +105,65 @@ function totalMeasuredInstances(score) {
     return score?.piles?.reduce((sum, pile) => sum + pile.count, 0) ?? 0;
 }
 
+const FAKE_PILE_COUNTS = { 'naive simple': 8500, 'instanced simple': 64000, 'naive full': 400, 'instanced full': 2000 };
+
+function jumpToStart() {
+    controller.stop();
+    swarm.clear();
+    clearResultsPile();
+    if (introModel) {
+        app.dynamic.remove(introModel);
+        introModel = null;
+    }
+    resultsControls.hidden = true;
+    app.configureStandardLighting();
+    introModel = loader.createModel('pokeball', { heightScale: 0.62 });
+    app.dynamic.add(introModel);
+    app.setIntroCamera();
+    stats.setPhase('Pronto', 1, 'Debug: start');
+    overlay.show(() => startBenchmark());
+}
+
+function jumpToBenchmark(mode) {
+    controller.stop();
+    clearResultsPile();
+    if (introModel) {
+        app.dynamic.remove(introModel);
+        introModel = null;
+    }
+    resultsControls.hidden = true;
+    overlay.hide();
+    app.setBenchmarkCamera();
+    controller.start({ benchmarkMode: mode, finalFull: true, append: false });
+}
+
+function jumpToPile(mode) {
+    controller.stop();
+    swarm.clear();
+    if (introModel) {
+        app.dynamic.remove(introModel);
+        introModel = null;
+    }
+    overlay.hide();
+    const labels = mode === 'full'
+        ? ['naive simple', 'instanced simple', 'naive full', 'instanced full']
+        : ['naive simple', 'instanced simple'];
+    const fakeScore = { piles: labels.map((label) => ({ label, count: FAKE_PILE_COUNTS[label] })) };
+    stats.setScore(fakeScore);
+    finalModeSelect.value = mode;
+    showResultsScene(fakeScore, mode);
+}
+
+if (PhaseSelector.requested()) {
+    new PhaseSelector({
+        start: jumpToStart,
+        'benchmark-simple': () => jumpToBenchmark('simple'),
+        'pile-simple': () => jumpToPile('simple'),
+        'benchmark-full': () => jumpToBenchmark('full'),
+        'pile-full': () => jumpToPile('full'),
+    });
+}
+
 runFullButton.addEventListener('click', startFullBenchmark);
 finalModeSelect.addEventListener('change', () => {
     if (!resultsPile) return;
@@ -117,9 +181,11 @@ function animate(now) {
     if (introModel) {
         introModel.position.y = 0.2 + Math.sin(now * 0.0016) * 0.1;
         introModel.rotation.y += delta * 0.35;
+        app.updateGpuLight(now * 0.001);
     }
 
     app.updateFog(now * 0.001, Math.min(stats.count / 9000, 1));
+    shadowDebug?.update();
     app.update(delta);
     app.render();
     stats.sampleFrame(now);

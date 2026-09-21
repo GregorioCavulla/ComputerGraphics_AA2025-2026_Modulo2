@@ -37,6 +37,11 @@ export class BenchmarkController {
         this.startPhase(performance.now());
     }
 
+    stop() {
+        this.running = false;
+        this.stage = 'idle';
+    }
+
     update(now) {
         if (!this.running) return;
         const phase = this.phases[this.phaseIndex];

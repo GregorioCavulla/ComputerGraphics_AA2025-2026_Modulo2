@@ -6,7 +6,7 @@ export class GpuBenchmark {
     }
 
     enter(mode, count, options = {}) {
-        this.renderer.configureGpuLighting();
+        this.renderer.configureFullBenchmarkProfile();
         this.renderer.setOrbitEnabled(false);
         this.renderer.camera.position.set(0, 28, 54);
         this.renderer.camera.lookAt(0, 14, 0);

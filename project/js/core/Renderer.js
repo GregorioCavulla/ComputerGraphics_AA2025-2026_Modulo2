@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+const INTRO_CAMERA = { position: [0, 0.95, 1.85], target: [0, 0.32, 0] };
+const BENCHMARK_CAMERA = { position: [0, 42, 82], target: [0, 1, 0] };
+
 export class AppRenderer {
     constructor(container) {
         this.container = container;
@@ -9,7 +12,11 @@ export class AppRenderer {
         this.renderer.setPixelRatio(this.targetPixelRatio);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        // BasicShadowMap, not PCFSoftShadowMap: confirmed by direct A/B test that
+        // PCFSoftShadowMap's sampling is broken on this project's target GPU/driver
+        // stack (AMD Radeon iGPU via ANGLE/OpenGL ES), producing shadows displaced
+        // by tens of units from their casters. BasicShadowMap renders correctly.
+        this.renderer.shadowMap.type = THREE.BasicShadowMap;
         this.container.appendChild(this.renderer.domElement);
 
         this.scene = new THREE.Scene();
@@ -17,71 +24,98 @@ export class AppRenderer {
         this.scene.fog = new THREE.FogExp2(0x071116, 0.0085);
 
         this.camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 650);
-        this.camera.position.set(0, 42, 82);
+        this.camera.position.set(...BENCHMARK_CAMERA.position);
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.target.set(0, 1, 0);
+        this.controls.target.set(...BENCHMARK_CAMERA.target);
         this.controls.enableDamping = true;
         this.controls.update();
 
         this.dynamic = new THREE.Group();
         this.scene.add(this.dynamic);
-        this.gpuLights = [];
-        this.gpuLightingEnabled = false;
         this.lastCompileMs = 0;
-        this.baseGroundMaterial = null;
-        this.glossyGroundMaterial = null;
+        this.groundMaterial = null;
         this.environmentTexture = this.createEnvironmentTexture();
+        this.activeProfile = null;
 
         this.createFloor();
+        this.createLights();
         this.configureStandardLighting();
         window.addEventListener('resize', () => this.resize());
     }
 
+    createLights() {
+        this.ambient = new THREE.AmbientLight(0x6f8fa8, 1.05);
+        this.scene.add(this.ambient);
+        this.sun = new THREE.DirectionalLight(0xfff1cf, 2.2);
+        this.sun.castShadow = true;
+        this.sun.shadow.bias = -0.0015;
+        this.sun.shadow.normalBias = 0.02;
+        this.scene.add(this.sun, this.sun.target);
+        // Sun orbit parameters (tuned per profile in configure*()).
+        // Formula: sun.position = (sin(t*speed)*radiusX, |cos(t*speed)|*heightRange+heightMin, cos(t*speed)*radiusZ)
+        this.sunSpeedFactor = 0.5;
+        this.sunRadiusX = 24;
+        this.sunRadiusZ = 24;
+        this.sunHeightMin = 10;
+        this.sunHeightRange = 30;
+    }
+
     createFloor() {
-        this.ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(900, 900),
-            new THREE.MeshStandardMaterial({ color: 0x0b171d, roughness: 0.95 }),
-        );
-        this.baseGroundMaterial = this.ground.material;
-        this.glossyGroundMaterial = new THREE.MeshStandardMaterial({ color: 0x10262d, roughness: 0.28, metalness: 0.35 });
+        this.groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            map: this.createGridTexture(),
+            roughness: 0.97,
+            metalness: 0,
+        });
+        this.ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), this.groundMaterial);
         this.ground.rotation.x = -Math.PI / 2;
         this.ground.receiveShadow = true;
         this.scene.add(this.ground);
-        this.grid = new THREE.GridHelper(260, 130, 0x56ffe0, 0x17343c);
-        this.scene.add(this.grid);
+    }
+
+    createGridTexture() {
+        const cellPx = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = cellPx;
+        canvas.height = cellPx;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0c1b21';
+        ctx.fillRect(0, 0, cellPx, cellPx);
+        ctx.strokeStyle = 'rgba(86, 255, 224, 0.65)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(1.5, 1.5, cellPx - 3, cellPx - 3);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        const cellSize = 2;
+        const planeSize = 900;
+        texture.repeat.set(planeSize / cellSize, planeSize / cellSize);
+        texture.anisotropy = 8;
+        texture.colorSpace = THREE.SRGBColorSpace;
+        return texture;
     }
 
     configureStandardLighting() {
-        this.removeGpuLights();
-        this.gpuLightingEnabled = false;
+        if (this.activeProfile === 'standard') return;
+        this.activeProfile = 'standard';
         this.setRenderScale(Math.min(window.devicePixelRatio, 1.5));
         this.renderer.shadowMap.enabled = true;
         this.ground.receiveShadow = true;
-        this.ground.material = this.baseGroundMaterial;
         this.scene.environment = null;
-        if (!this.ambient) {
-            this.ambient = new THREE.AmbientLight(0x6f8fa8, 1.05);
-            this.scene.add(this.ambient);
-        }
-        if (!this.sun) {
-            this.sun = new THREE.DirectionalLight(0xfff1cf, 2.2);
-            this.sun.castShadow = true;
-            this.scene.add(this.sun, this.sun.target);
-        }
         this.sun.castShadow = true;
-        this.sun.position.set(4, 8, 5);
+        this.sun.intensity = 2.2;
         this.sun.target.position.set(0, 0, 0);
-        this.sun.shadow.mapSize.set(1024, 1024);
-        this.sun.shadow.camera.left = -80;
-        this.sun.shadow.camera.right = 80;
-        this.sun.shadow.camera.top = 80;
-        this.sun.shadow.camera.bottom = -80;
+        this.sun.shadow.mapSize.set(2048, 2048);
         this.sun.shadow.camera.near = 1;
-        this.sun.shadow.camera.far = 160;
-        this.sun.shadow.bias = -0.0015;
-        this.sun.shadow.normalBias = 0.02;
-        this.sun.shadow.needsUpdate = true;
+        this.sun.shadow.camera.far = 60;
+        this.setShadowFrustum(6);
+        this.sunSpeedFactor = 0.5;
+        this.sunRadiusX = 24;
+        this.sunRadiusZ = 24;
+        this.sunHeightMin = 10;
+        this.sunHeightRange = 30;
     }
 
     configureBenchmarkProfile(mode = 'performance') {
@@ -93,88 +127,102 @@ export class AppRenderer {
     }
 
     configureCpuProfile() {
-        this.removeGpuLights();
-        this.gpuLightingEnabled = false;
+        if (this.activeProfile === 'cpu') return;
+        this.activeProfile = 'cpu';
         this.setRenderScale(1);
         this.renderer.shadowMap.enabled = false;
         this.ground.receiveShadow = false;
-        this.ground.material = this.baseGroundMaterial;
         this.scene.environment = null;
-        if (!this.ambient) {
-            this.ambient = new THREE.AmbientLight(0x6f8fa8, 1.05);
-            this.scene.add(this.ambient);
-        }
-        if (this.sun) {
-            this.sun.castShadow = false;
-            this.sun.intensity = 0.6;
-        }
+        this.sun.castShadow = false;
+        this.sun.intensity = 0.6;
     }
 
     configureFullBenchmarkProfile() {
-        this.configureGpuLighting();
+        if (this.activeProfile === 'full') return;
+        this.activeProfile = 'full';
         this.setRenderScale(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.type = THREE.BasicShadowMap;
         this.ground.receiveShadow = true;
-        this.ground.material = this.glossyGroundMaterial;
         this.scene.environment = this.environmentTexture;
+        this.sun.castShadow = true;
         this.sun.intensity = 3.7;
         this.sun.shadow.mapSize.set(4096, 4096);
+        this.sun.shadow.camera.near = 1;
+        this.sun.shadow.camera.far = 150;
+        this.setShadowFrustum(80);
+        this.sun.target.position.set(0, 0, 0);
+        // Keep sun nearly at zenith for tall helix formation: radii small,
+        // height oscillates 85-100 degrees (vs 10-40 for standard).
+        this.sunSpeedFactor = 0.5;
+        this.sunRadiusX = 8;
+        this.sunRadiusZ = 8;
+        this.sunHeightMin = 85;
+        this.sunHeightRange = 15;
     }
 
     configureFinalProfile(full = true) {
-        if (full) {
-            this.configureFullBenchmarkProfile();
-            this.sun.shadow.mapSize.set(2048, 2048);
-            for (const light of this.gpuLights) light.shadow.mapSize.set(512, 512);
-        } else {
+        if (!full) {
             this.configureStandardLighting();
-            this.ground.material = this.baseGroundMaterial;
+            return;
         }
-    }
-
-    configureGpuLighting() {
-        if (this.gpuLightingEnabled) return;
-        this.configureStandardLighting();
-        this.gpuLightingEnabled = true;
+        if (this.activeProfile === 'final-full') return;
+        this.activeProfile = 'final-full';
         this.setRenderScale(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.BasicShadowMap;
         this.ground.receiveShadow = true;
+        this.scene.environment = this.environmentTexture;
         this.sun.castShadow = true;
+        this.sun.intensity = 3.7;
         this.sun.shadow.mapSize.set(4096, 4096);
-        this.sun.intensity = 3.4;
-        const colors = [0x7dd3ff, 0xff7ac8, 0xffe08a];
-        const positions = [[-7, 5, -4], [6, 4, -5], [0, 7, 6]];
-        for (let i = 0; i < colors.length; i += 1) {
-            const light = new THREE.PointLight(colors[i], 5.5, 22, 1.6);
-            light.position.set(...positions[i]);
-            light.castShadow = true;
-            light.shadow.mapSize.set(1024, 1024);
-            this.gpuLights.push(light);
-            this.scene.add(light);
-        }
+        this.sun.shadow.camera.near = 1;
+        this.sun.shadow.camera.far = 90;
+        this.setShadowFrustum(40);
+        this.sun.target.position.set(0, 0, 0);
+        this.sunSpeedFactor = 0.5;
+        this.sunRadiusX = 24;
+        this.sunRadiusZ = 24;
+        this.sunHeightMin = 10;
+        this.sunHeightRange = 30;
+    }
+
+    setShadowFrustum(size) {
+        const cam = this.sun.shadow.camera;
+        cam.left = -size;
+        cam.right = size;
+        cam.top = size;
+        cam.bottom = -size;
+        cam.updateProjectionMatrix();
+        this.sun.shadow.needsUpdate = true;
+    }
+
+    setIntroCamera() {
+        this.camera.position.set(...INTRO_CAMERA.position);
+        this.controls.target.set(...INTRO_CAMERA.target);
+        this.controls.update();
+    }
+
+    setBenchmarkCamera() {
+        this.camera.position.set(...BENCHMARK_CAMERA.position);
+        this.controls.target.set(...BENCHMARK_CAMERA.target);
+        this.controls.update();
     }
 
     updateGpuLight(elapsed) {
-        const radius = 26;
-        this.sun.position.set(Math.cos(elapsed * 0.75) * radius, 14, Math.sin(elapsed * 0.75) * radius);
-        this.sun.target.position.set(0, 5, 0);
+        const t = elapsed * this.sunSpeedFactor;
+        this.sun.position.set(
+            Math.sin(t) * this.sunRadiusX,
+            Math.abs(Math.cos(t)) * this.sunHeightRange + this.sunHeightMin,
+            Math.cos(t) * this.sunRadiusZ
+        );
+        this.sun.target.position.set(0, 0, 0);
         this.sun.target.updateMatrixWorld();
         this.sun.shadow.needsUpdate = true;
     }
 
     updateFog(elapsed, intensity = 1) {
         this.scene.fog.density = 0.0075 + Math.sin(elapsed * 0.22) * 0.0012 + intensity * 0.004;
-    }
-
-    removeGpuLights() {
-        for (const light of this.gpuLights) {
-            this.scene.remove(light);
-            light.shadow?.map?.dispose();
-            light.dispose?.();
-        }
-        this.gpuLights.length = 0;
-        if (this.sun) this.sun.intensity = 2.2;
     }
 
     clearDynamicContent() {
@@ -198,6 +246,30 @@ export class AppRenderer {
     }
 
     render() {
+        // Hard per-frame guarantee, with NO escape hatch of any kind (no flag,
+        // no URL param): force BasicShadowMap regardless of what any profile
+        // method sets renderer.shadowMap.type to. PCFShadowMap/PCFSoftShadowMap
+        // are confirmed broken on this project's target GPU/driver stack (see
+        // constructor comment) — this can never be overridden back to them.
+        if (this.renderer.shadowMap.type !== THREE.BasicShadowMap) {
+            this.renderer.shadowMap.type = THREE.BasicShadowMap;
+            this.sun.shadow.map?.dispose();
+            this.sun.shadow.map = null;
+        }
+
+        // Some GPU/driver stacks (observed: AMD iGPU via ANGLE/OpenGL ES) fail to
+        // fully clear the shadow depth render target between frames, so as the
+        // sun orbits, past positions leave a permanent smear instead of being
+        // overwritten — independent of shadow map filter type. Forcing three.js
+        // to allocate a brand-new render target periodically sidesteps a stale
+        // buffer that a driver-level clear silently fails to reset.
+        this.shadowMapAge = (this.shadowMapAge ?? 0) + 1;
+        if (this.shadowMapAge >= 10) {
+            this.shadowMapAge = 0;
+            this.sun.shadow.map?.dispose();
+            this.sun.shadow.map = null;
+        }
+
         this.renderer.render(this.scene, this.camera);
     }
 

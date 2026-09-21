@@ -3,7 +3,6 @@ import * as THREE from 'three';
 const MODEL_KEYS = ['pokeball', 'porygon', 'porygon2', 'porygonz'];
 const labelScale = new THREE.Vector3(9, 3, 1);
 const matrix = new THREE.Matrix4();
-const position = new THREE.Vector3();
 const quaternion = new THREE.Quaternion();
 const scaleVector = new THREE.Vector3(1, 1, 1);
 const yAxis = new THREE.Vector3(0, 1, 0);
@@ -15,7 +14,6 @@ export class ResultsPileScene {
         this.score = score;
         this.options = { finalFull: true, ...options };
         this.group = new THREE.Group();
-        this.items = [];
         this.sets = [];
         this.elapsed = 0;
     }
@@ -23,7 +21,6 @@ export class ResultsPileScene {
     enter() {
         this.dispose();
         this.group = new THREE.Group();
-        this.items = [];
         this.sets = [];
         this.app.configureFinalProfile(this.options.finalFull);
         this.app.setOrbitEnabled(true);
@@ -43,19 +40,6 @@ export class ResultsPileScene {
     update(delta) {
         this.elapsed += delta;
         if (this.options.finalFull) this.app.updateGpuLight(this.elapsed);
-        for (const item of this.items) {
-            if (item.t >= 1) continue;
-            item.t = Math.min(1, item.t + delta * item.speed);
-            const eased = 1 - Math.pow(1 - item.t, 3);
-            position.lerpVectors(item.start, item.end, eased);
-            item.angle += delta * item.spin;
-            quaternion.setFromAxisAngle(yAxis, item.angle);
-            matrix.compose(position, quaternion, scaleVector);
-            for (const mesh of item.meshes) {
-                mesh.setMatrixAt(item.localIndex, matrix.clone().multiply(mesh.userData.sourceMatrix));
-                mesh.instanceMatrix.needsUpdate = true;
-            }
-        }
     }
 
     setFullMode(finalFull) {
@@ -76,7 +60,6 @@ export class ResultsPileScene {
             }
         });
         this.group.clear();
-        this.items = [];
         this.sets = [];
     }
 
@@ -93,25 +76,20 @@ export class ResultsPileScene {
             const key = MODEL_KEYS[index % MODEL_KEYS.length];
             const localIndex = localCounts.get(key) ?? 0;
             localCounts.set(key, localIndex + 1);
-            const start = new THREE.Vector3(target.x, target.y + 18 + (index % 18) * 0.45, target.z);
-            const end = new THREE.Vector3(target.x, target.y, target.z);
-            this.items.push({
-                meshes: meshSets.get(key),
-                localIndex,
-                start,
-                end,
-                t: 0,
-                angle: index * 0.9,
-                speed: 0.45 + (index % 9) * 0.045,
-                spin: 0.4 + (index % 7) * 0.08,
-            });
+            quaternion.setFromAxisAngle(yAxis, index * 0.9);
+            matrix.compose(target, quaternion, scaleVector);
+            for (const mesh of meshSets.get(key)) {
+                mesh.setMatrixAt(localIndex, matrix.clone().multiply(mesh.userData.sourceMatrix));
+            }
             highest = Math.max(highest, target.y);
         });
+        for (const meshes of meshSets.values()) {
+            for (const mesh of meshes) mesh.instanceMatrix.needsUpdate = true;
+        }
         const sprite = createLabel(`${label}\n${realCount.toLocaleString('it-IT')} modelli reali\nscala visiva 1:${scale}`);
         sprite.position.set(center.x, highest + 5, center.z);
         sprite.scale.copy(labelScale);
         this.group.add(sprite);
-        this.update(0);
     }
 
     createInstancedModelSet(key, capacity) {
