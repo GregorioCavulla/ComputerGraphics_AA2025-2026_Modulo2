@@ -1,9 +1,9 @@
 import { MixedBenchmark } from './MixedBenchmark.js';
 
+import { TARGET_FPS } from './BenchmarkConfig.js';
 const WARMUP_MS = 450;
 const MEASURE_MS = 900;
 const RAMP_MS = 550;
-const TARGET_FPS = 60;
 const LOW_FPS_WINDOWS = 1;
 const REFINE_ATTEMPTS = 4;
 

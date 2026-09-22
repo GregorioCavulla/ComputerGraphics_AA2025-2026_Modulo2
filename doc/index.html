@@ -19,8 +19,37 @@
 	* { box-sizing: border-box; }
 	html { background: var(--bg); color: var(--ink); font-family: "Trebuchet MS", "Aptos", sans-serif; line-height: 1.58; }
 	body { margin: 0; background: radial-gradient(circle at 50% 0, #153841 0, var(--bg) 46%, #03070a 100%); }
-	main { width: min(980px, calc(100vw - 32px)); margin: 0 auto; padding: 48px 0 72px; }
+	main { width: min(980px, calc(100vw - 360px)); margin: 0 auto; padding: 48px 0 72px; }
 	header { padding: 28px 0 24px; border-bottom: 1px solid var(--line); }
+	.doc-float {
+		position: fixed;
+		top: 18px;
+		right: 18px;
+		padding: 10px 14px;
+		background: rgba(4, 18, 24, 0.82);
+		border: 1px solid rgba(104, 242, 208, 0.22);
+		backdrop-filter: blur(10px);
+		box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+		z-index: 10;
+	}
+	.doc-float a {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		color: var(--aqua);
+		text-decoration: none;
+		font-size: .72rem;
+		font-weight: 700;
+		letter-spacing: .1em;
+		text-transform: uppercase;
+		transition: color .2s ease, text-shadow .2s ease;
+	}
+	.doc-float a::before { content: "←"; }
+	.doc-float a:hover, .doc-float a:focus-visible {
+		color: var(--yellow);
+		text-shadow: 0 0 10px rgba(255, 240, 106, 0.35);
+		outline: none;
+	}
 	h1, h2, h3, h4 { line-height: 1.2; }
 	h1 { margin: 0; color: var(--aqua); font-size: clamp(2rem, 5vw, 4.2rem); letter-spacing: .04em; text-transform: uppercase; }
 	h2 { margin: 48px 0 16px; color: var(--yellow); font-size: 1.55rem; border-bottom: 1px dashed rgba(255, 240, 106, 0.25); padding-bottom: 6px; }
@@ -77,9 +106,23 @@
 	/* Step list numerata */
 	.step-box { margin-bottom: 18px; border-left: 2px solid var(--aqua); padding-left: 16px; }
 	.step-title { font-weight: bold; color: var(--aqua); margin-bottom: 6px; }
+	@media (max-width: 980px) {
+		main { width: min(980px, calc(100vw - 300px)); }
+	}
+	@media (max-width: 760px) {
+		main { width: min(980px, calc(100vw - 24px)); padding-top: 96px; }
+		.doc-float {
+			top: 12px;
+			right: 12px;
+			width: min(230px, calc(100vw - 24px));
+		}
+	}
 </style>
 </head>
 <body>
+	<aside class="doc-float" aria-label="Torna alla pagina iniziale del progetto">
+		<a href="../project/index.html">Vai al progetto</a>
+	</aside>
 <main>
 	<header>
 		<h1>Porygon-Z Benchmark</h1>
@@ -87,7 +130,7 @@
 	</header>
 
 	<!-- SEZIONE 1: OBIETTIVO DEL PROGETTO -->
-	<section>
+	<section id="panoramica">
 		<h2>1. Obiettivi e Contesto Tecnico</h2>
 		<p>Il progetto nasce per analizzare sperimentalmente l'efficienza della pipeline di rendering WebGL su browser, mettendo a confronto il rendering tradizionale a oggetti multipli e il rendering ad alte prestazioni tramite GPU Instancing con <code>THREE.InstancedMesh</code>.</p>
 		<p>L'architettura prevede l'impiego massivo di istanze grafiche per renderizzare contemporaneamente centinaia o migliaia di entità in una singola Draw Call. Affinché la GPU possa processare questo volume di dati senza colli di bottiglia, ciascun modello tridimensionale deve soddisfare requisiti geometrici e di shading estremamente stringenti:</p>
@@ -100,7 +143,7 @@
 	</section>
 
 	<!-- SEZIONE 2: PIPELINE DI OTTIMIZZAZIONE IN BLENDER -->
-	<section>
+	<section id="pipeline">
 		<h2>2. Pipeline di Ottimizzazione Asset 3D in Blender</h2>
 		<p>I modelli 3D grezzi reperiti o esportati da formati di interscambio (es. <code>.dae</code> o <code>.fbx</code>) presentano solitamente pattern strutturali inadatti al rendering real-time orientato all'instancing.</p>
 
@@ -237,7 +280,7 @@ loader.load('project/assets/pz/pz.glb', (gltf) => {
 	</section>
 
 	<!-- SEZIONE 3: ARCHITETTURA DEL BENCHMARK -->
-	<section>
+	<section id="benchmark">
 		<h2>3. Architettura Software del Benchmark</h2>
 		<div class="grid">
 			<div class="panel">

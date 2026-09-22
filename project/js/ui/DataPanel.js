@@ -1,4 +1,7 @@
+import { TARGET_FPS, CHART_MAX_FPS } from '../benchmark/BenchmarkConfig.js';
+
 export class DataPanel {
+
     constructor(root, stats) {
         this.root = root;
         this.stats = stats;
@@ -40,13 +43,14 @@ export class DataPanel {
 function drawSparkline(context, canvas, samples) {
     const width = canvas.width;
     const height = canvas.height;
+    const targetY = height - (TARGET_FPS / CHART_MAX_FPS) * height;
     context.clearRect(0, 0, width, height);
     context.fillStyle = '#06151a';
     context.fillRect(0, 0, width, height);
     context.strokeStyle = '#193f48';
     context.beginPath();
-    context.moveTo(0, height * 0.7);
-    context.lineTo(width, height * 0.7);
+    context.moveTo(0, targetY);
+    context.lineTo(width, targetY);
     context.stroke();
     if (samples.length < 2) return;
     context.strokeStyle = '#65f2d1';
@@ -54,7 +58,7 @@ function drawSparkline(context, canvas, samples) {
     context.beginPath();
     samples.forEach((fps, index) => {
         const x = (index / (samples.length - 1)) * width;
-        const y = height - Math.min(fps, 90) / 90 * height;
+        const y = height - Math.min(fps, CHART_MAX_FPS) / CHART_MAX_FPS * height;
         if (index === 0) context.moveTo(x, y);
         else context.lineTo(x, y);
     });
