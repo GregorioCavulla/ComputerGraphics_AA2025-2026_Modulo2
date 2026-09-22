@@ -25,6 +25,12 @@ Il progetto è accessibile direttamente online via GitHub Pages:
 
 ---
 
+### How to use
+
+Apri il progetto e premi **Avvia benchmark** nella schermata iniziale. Durante il test, l'HUD in alto a destra mostra le metriche di rendering. Al termine, usa il selettore in basso a sinistra per scegliere la visualizzazione delle pile e il pulsante **Esegui test full** per avviare il secondo benchmark con luci e ombre.
+
+---
+
 ### Struttura della repository
 
 * `index.html` — Landing page con selezione rapida tra progetto e documentazione.

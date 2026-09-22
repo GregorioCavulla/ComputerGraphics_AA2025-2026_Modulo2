@@ -129,6 +129,13 @@
 		<p class="lead">Documentazione tecnica di progetto e pipeline di ottimizzazione asset 3D. Benchmark grafico interattivo realizzato con Three.js r160 locale, moduli ES6 nativi e asset glTF 2.0 compatti serviti staticamente per il confronto di rendering tra approccio standard (naive) e GPU Instancing.</p>
 	</header>
 
+	<section>
+		<h2>How to use</h2>
+		<p>La pagina del progetto presenta inizialmente una schermata di avvio con il pulsante <strong>Avvia benchmark</strong>. Premendolo si avvia il primo ciclo di misurazione nel profilo simple, che confronta le modalità naive e instanced mentre il carico della scena viene incrementato in modo adattivo.</p>
+		<p>Durante tutte le fasi del benchmark, il pannello HUD fissato in alto a destra mostra la fase corrente, gli FPS, il tempo per frame, le draw call, i triangoli e il numero di istanze. Il grafico sottostante visualizza l'andamento degli FPS e la linea del target.</p>
+		<p>Al termine del primo ciclo viene mostrata la scena con le pile dei risultati. In basso a sinistra compaiono il selettore <strong>Visualizzazione finale</strong> e, subito sotto, il pulsante <strong>Esegui test full</strong>. Il selettore permette di scegliere tra la visualizzazione simple, con luce stabile e materiali leggeri, e la visualizzazione full, con luci, ombre e materiali completi. Il pulsante avvia il secondo benchmark nel profilo full.</p>
+	</section>
+
 	<!-- SEZIONE 1: OBIETTIVO DEL PROGETTO -->
 	<section id="panoramica">
 		<h2>1. Obiettivi e contesto tecnico</h2>
