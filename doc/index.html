@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Documentazione & Pipeline Asset | Porygon-Z Benchmark</title>
+<title>Documentazione e pipeline degli asset | Porygon-Z benchmark</title>
 <style>
 	:root {
 		--bg: #071116;
@@ -131,71 +131,71 @@
 
 	<!-- SEZIONE 1: OBIETTIVO DEL PROGETTO -->
 	<section id="panoramica">
-		<h2>1. Obiettivi e Contesto Tecnico</h2>
-		<p>Il progetto nasce per analizzare sperimentalmente l'efficienza della pipeline di rendering WebGL su browser, mettendo a confronto il rendering tradizionale a oggetti multipli e il rendering ad alte prestazioni tramite GPU Instancing con <code>THREE.InstancedMesh</code>.</p>
-		<p>L'architettura prevede l'impiego massivo di istanze grafiche per renderizzare contemporaneamente centinaia o migliaia di entità in una singola Draw Call. Affinché la GPU possa processare questo volume di dati senza colli di bottiglia, ciascun modello tridimensionale deve soddisfare requisiti geometrici e di shading estremamente stringenti:</p>
+		<h2>1. Obiettivi e contesto tecnico</h2>
+		<p>Il progetto nasce per analizzare sperimentalmente l'efficienza della pipeline di rendering WebGL su browser, mettendo a confronto il rendering tradizionale a oggetti multipli e il rendering ad alte prestazioni tramite GPU instancing con <code>THREE.InstancedMesh</code>.</p>
+		<p>L'architettura prevede l'impiego massivo di istanze grafiche per renderizzare contemporaneamente centinaia o migliaia di entità in una singola draw call. Affinché la GPU possa processare questo volume di dati senza colli di bottiglia, ciascun modello 3D deve soddisfare requisiti geometrici e di shading estremamente stringenti:</p>
 		<ul>
-			<li><strong>Topologia e Geometria Unificata:</strong> una singola <code>THREE.BufferGeometry</code> per entità, priva di gerarchie complesse, sottomesh disgiunte o nodi intermedi nel grafo di scena.</li>
-			<li><strong>Materiale Singolo (Single Material Architecture):</strong> un unico <code>THREE.Material</code> condiviso per l'intera mesh dell'oggetto.</li>
-			<li><strong>Texture Atlas Unico:</strong> una sola mappa di campionamento (BaseColor/Albedo) contenente tutti i dettagli cromatici e superficiali del modello, eliminando passaggi di stato multipli sul binding delle texture.</li>
+			<li><strong>Topologia e geometria unificate:</strong> una singola <code>THREE.BufferGeometry</code> per entità, priva di gerarchie complesse, sottomesh disgiunte o nodi intermedi nel grafo di scena.</li>
+			<li><strong>Materiale singolo:</strong> un unico <code>THREE.Material</code> condiviso per l'intera mesh dell'oggetto.</li>
+			<li><strong>Texture atlas unico:</strong> una sola mappa di campionamento contenente tutti i dettagli cromatici e superficiali del modello, eliminando passaggi di stato multipli sul binding delle texture.</li>
 		</ul>
 		<p>I modelli protagonisti del benchmark appartengono alla linea evolutiva della famiglia Porygon (<strong>Porygon</strong>, <strong>Porygon2</strong>, <strong>Porygon-Z</strong>) e alla <strong>Pokéball</strong>, simboli ideali per testare tassellazioni poligonali progressive e superfici curve.</p>
 	</section>
 
 	<!-- SEZIONE 2: PIPELINE DI OTTIMIZZAZIONE IN BLENDER -->
 	<section id="pipeline">
-		<h2>2. Pipeline di Ottimizzazione Asset 3D in Blender</h2>
-		<p>I modelli 3D grezzi reperiti o esportati da formati di interscambio (es. <code>.dae</code> o <code>.fbx</code>) presentano solitamente pattern strutturali inadatti al rendering real-time orientato all'instancing.</p>
+		<h2>2. Pipeline di ottimizzazione degli asset 3D in Blender</h2>
+		<p>I modelli 3D grezzi reperiti o esportati da formati di interscambio (es. <code>.dae</code> o <code>.fbx</code>) presentano solitamente strutture inadatte al rendering real-time orientato all'instancing.</p>
 
-		<h3>2.1 Motivazioni Architetturali e Vincoli di THREE.InstancedMesh</h3>
+		<h3>2.1 Motivazioni architetturali e vincoli di <code>THREE.InstancedMesh</code></h3>
 		<p>In Three.js, un'istanza <code>InstancedMesh(geometry, material, count)</code> stabilisce un'associazione biunivoca e inscindibile tra una sola geometria e un solo materiale. Se un modello è composto da due o più materiali (ad esempio corpo, giunture e occhi separati):</p>
 		<ul>
 			<li>Il loader genera un <code>THREE.Group</code> o una mesh complessa con array multi-materiale.</li>
-			<li>L'approccio frammenta la scena e moltiplica le chiamate di disegno (Draw Calls) per ogni componente.</li>
-			<li>Si complica drasticamente la sincronizzazione delle matrici di trasformazione (<span class="math">4 &times; 4</span>) su GPU, costringendo la CPU a gestire array paralleli sincronizzati manualmente via script per ciascuna sottomesh.</li>
+			<li>L'approccio frammenta la scena e moltiplica le draw call per ogni componente.</li>
+			<li>La scena richiede più oggetti e materiali da gestire durante il rendering.</li>
 		</ul>
 
-		<h3>2.2 Eliminazione dell'Overhead da Armature</h3>
-		<p>I modelli grezzi importati includevano scheletri gerarchici (<em>Armatures</em>) e gruppi di vertici pesati (<em>Vertex Groups</em>). Poiché le entità nel benchmark sono animate a livello di istanza nello spazio (tramite rototraslazione della matrice d'istanza) e non tramite scheletro interno continuo, i modificatori di rigging attivi avrebbero introdotto un costo di calcolo continuo e non necessario sulla CPU per il calcolo delle matrici di skinning.</p>
+		<h3>2.2 Rimozione dello scheletro</h3>
+		<p>In Blender è stato rimosso lo scheletro e i relativi elementi di rigging dai modelli, perché non erano utili allo scopo del benchmark: le copie vengono trasformate direttamente nello spazio della scena o tramite la matrice d'istanza.</p>
 
-		<h3>2.3 Strumenti: L'Add-on Material Combiner</h3>
-		<p>Per risolvere il problema dei materiali multipli senza ricorrere a complesse operazioni manuali di Texture Baking, è stato impiegato in Blender l'add-on open source <strong>Material Combiner</strong> (sviluppato da shotariya):</p>
+		<h3>2.3 Strumento: Material Combiner</h3>
+		<p>Per risolvere il problema dei materiali multipli senza ricorrere a operazioni manuali di baking delle texture, è stato impiegato in Blender l'add-on open source <strong>Material Combiner</strong>, disponibile nella <a href="https://github.com/Grim-es/material-combiner-addon" target="_blank" rel="noopener noreferrer">repository ufficiale</a>:</p>
 		<ul>
-			<li><strong>Analisi degli Slot:</strong> effettua la scansione automatica di tutti i materiali assegnati alla mesh selezionata.</li>
-			<li><strong>Generazione dell'Atlas:</strong> riconosce le texture collegate a ciascun canale Base Color/Diffuse e le ricompone all'interno di un'unica matrice di pixel calibrata (Texture Atlas a <span class="math">1024 &times; 1024</span> o <span class="math">2048 &times; 2048</span>).</li>
-			<li><strong>UV Remapping Automatico:</strong> ricalcola istantaneamente le coordinate UV dei poligoni assegnati a ciascun materiale originario, scalandole e traslandole in modo che puntino con precisione alle coordinate corrispondenti nel nuovo atlas.</li>
-			<li><strong>Collasso a Materiale Singolo:</strong> rimuove tutti gli slot materiale ridondanti, lasciando un unico shader con la texture combinata.</li>
+			<li><strong>Analisi degli slot:</strong> effettua la scansione automatica di tutti i materiali assegnati alla mesh selezionata.</li>
+			<li><strong>Generazione dell'atlas:</strong> riconosce le texture collegate ai canali Base Color e Diffuse e le ricompone all'interno di un'unica matrice di pixel (atlas a <span class="math">1024 &times; 1024</span> o <span class="math">2048 &times; 2048</span>).</li>
+			<li><strong>Remapping delle UV:</strong> ricalcola le coordinate UV dei poligoni assegnati ai materiali originari, adattandole alle coordinate corrispondenti nel nuovo atlas.</li>
+			<li><strong>Collasso a materiale singolo:</strong> rimuove gli slot materiale ridondanti, lasciando un unico shader con la texture combinata.</li>
 		</ul>
 
-		<h3>2.4 Standard Operating Procedure (SOP) per Asset</h3>
+		<h3>2.4 Procedura operativa per gli asset</h3>
 		<p>Il workflow operativo applicato in modo sistematico a ciascun asset segue questa sequenza:</p>
 
 		<div class="panel">
 			<div class="step-box">
-				<div class="step-title">Fase 1: Importazione e Bonifica</div>
+				<div class="step-title">Fase 1: importazione e bonifica</div>
 				<ul>
 					<li><strong>Importazione:</strong> inizializzazione della scena e importazione del file sorgente (<code>.dae</code> o <code>.fbx</code>).</li>
-					<li><strong>Pulizia Rigging:</strong> rimozione del modificatore <em>Armature</em> dal pannello Modifier Properties ed eliminazione fisica dell'oggetto scheletro (ossa) dalla scena.</li>
-					<li><strong>Unione Geometrica (Join):</strong> selezione di tutte le entità mesh componenti (es. gusci, occhi o bottoni) ed esecuzione di <code>Join</code> (<code>Ctrl + J</code>) per fonderli in un unico oggetto contiguo.</li>
+					<li><strong>Pulizia del rigging:</strong> rimozione del modificatore <em>Armature</em> dal pannello Modifier Properties ed eliminazione fisica dell'oggetto scheletro dalla scena.</li>
+					<li><strong>Unione geometrica:</strong> selezione delle entità mesh componenti ed esecuzione di <code>Join</code> (<code>Ctrl + J</code>) per fonderle in un unico oggetto.</li>
 				</ul>
 			</div>
 
 			<div class="step-box">
-				<div class="step-title">Fase 2: Unificazione dei Materiali e Texture</div>
+				<div class="step-title">Fase 2: unificazione dei materiali e delle texture</div>
 				<ul>
 					<li>Selezione dell'oggetto unificato e apertura della scheda laterale <em>MatCombiner</em> (tasto <code>N</code>).</li>
-					<li>Esecuzione di <em>Generate Material List</em> per rilevare tutti i materiali attivi.</li>
+					<li>Esecuzione di <em>Generate Material List</em> per rilevare i materiali attivi.</li>
 					<li>Esecuzione di <em>Save Atlas to...</em> con salvataggio dell'immagine generata in formato <code>.png</code>.</li>
 					<li>Verifica della presenza di un solo slot materiale attivo nella scheda <em>Material Properties</em>.</li>
 				</ul>
 			</div>
 
 			<div class="step-box">
-				<div class="step-title">Fase 3: Normalizzazione dello Spazio Locale</div>
+				<div class="step-title">Fase 3: normalizzazione dello spazio locale</div>
 				<p>Per garantire che il posizionamento in Three.js corrisponda esattamente alle coordinate calcolate dalla matrice di istanza:</p>
 				<ul>
-					<li><strong>Centraggio dell'Origine:</strong> assegnazione del pivot geometrico tramite <code>Set Origin &gt; Origin to Geometry</code> (o traslazione della base a quota <span class="math">Z = 0</span>).</li>
-					<li><strong>Congelamento delle Trasformazioni (Freeze Transforms):</strong> esecuzione del comando <em>Apply All Transforms</em> (<code>Ctrl + A</code>).</li>
+					<li><strong>Centraggio dell'origine:</strong> assegnazione del pivot geometrico tramite <code>Set Origin &gt; Origin to Geometry</code> (o traslazione della base a quota <span class="math">Z = 0</span>).</li>
+					<li><strong>Congelamento delle trasformazioni:</strong> esecuzione del comando <em>Apply All Transforms</em> (<code>Ctrl + A</code>).</li>
 				</ul>
 				
 				<div class="formula-block">
@@ -208,58 +208,58 @@
 			</div>
 
 			<div class="step-box" style="margin-bottom: 0;">
-				<div class="step-title">Fase 4: Esportazione in Formato Binario glTF (.glb)</div>
+				<div class="step-title">Fase 4: esportazione in formato binario glTF (.glb)</div>
 				<p>L'esportazione verso Three.js viene eseguita impostando il formato standard glTF 2.0 (<code>.glb</code>) con i seguenti parametri:</p>
 				<ul>
 					<li><strong>Include:</strong> <em>Selected Objects</em> (esporta esclusivamente l'oggetto attivo bonificato).</li>
 					<li><strong>Transform:</strong> <em>+Y Up</em> (standard di coordinate per Three.js e WebGL).</li>
 					<li><strong>Geometry:</strong> <em>Apply Modifiers</em>, <em>UVs</em> e <em>Normals</em> abilitati.</li>
-					<li><strong>Materials:</strong> <em>Export Materials</em> abilitato (incorpora la texture atlas direttamente all'interno del container binario <code>.glb</code> come bufferView compresso).</li>
+					<li><strong>Materials:</strong> <em>Export Materials</em> abilitato (incorpora l'atlas direttamente nel container binario <code>.glb</code> come bufferView compresso).</li>
 				</ul>
 			</div>
 		</div>
 
-		<h3>2.5 Risultati di Ottimizzazione</h3>
+		<h3>2.5 Risultati di ottimizzazione</h3>
 		<div class="table-wrapper">
 			<table>
 				<thead>
 					<tr>
-						<th>Metrica</th>
-						<th>Asset Grezzo (Origine)</th>
-						<th>Asset Ottimizzato (.glb)</th>
+						<th>metrica</th>
+						<th>asset grezzo (origine)</th>
+						<th>asset ottimizzato (.glb)</th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr>
-						<td><strong>Numero Geometrie</strong></td>
-						<td>Molteplici sottomesh disgiunte</td>
+						<td><strong>numero geometrie</strong></td>
+						<td>molteplici sottomesh disgiunte</td>
 						<td>1 singola BufferGeometry</td>
 					</tr>
 					<tr>
-						<td><strong>Slot Materiale</strong></td>
+						<td><strong>slot materiale</strong></td>
 						<td>2 o più materiali separati</td>
-						<td>1 Materiale Unificato</td>
+						<td>1 materiale unificato</td>
 					</tr>
 					<tr>
-						<td><strong>Draw Calls per Gruppo</strong></td>
+						<td><strong>draw call per gruppo</strong></td>
 						<td><span class="math">N</span> (proporzionali a mesh e materiali)</td>
 						<td><strong>1</strong> (per tutte le istanze complessive)</td>
 					</tr>
 					<tr>
-						<td><strong>Dipendenze Esterne</strong></td>
-						<td>Texture sparse con percorsi relativi</td>
-						<td>File unico compatto autonomo (.glb)</td>
+						<td><strong>dipendenze esterne</strong></td>
+						<td>texture sparse con percorsi relativi</td>
+						<td>file unico compatto autonomo (.glb)</td>
 					</tr>
 					<tr>
-						<td><strong>Compatibilità Instancing</strong></td>
-						<td>Complessa (istanze multiple sincronizzate)</td>
-						<td><strong>Nativa</strong> con singola <code>InstancedMesh</code></td>
+						<td><strong>compatibilità instancing</strong></td>
+						<td>complessa (istanze multiple sincronizzate)</td>
+						<td><strong>nativa</strong> con singola <code>InstancedMesh</code></td>
 					</tr>
 				</tbody>
 			</table>
 		</div>
 
-		<h3>2.6 Integrazione a Valle in Three.js</h3>
+		<h3>2.6 Integrazione a valle in Three.js</h3>
 		<p>Grazie alla standardizzazione a monte, l'estrazione e l'istanziazione in Three.js diventano lineari e prive di logiche di parsing complesse:</p>
 		<pre><code>import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -281,14 +281,14 @@ loader.load('project/assets/pz/pz.glb', (gltf) => {
 
 	<!-- SEZIONE 3: ARCHITETTURA DEL BENCHMARK -->
 	<section id="benchmark">
-		<h2>3. Architettura Software del Benchmark</h2>
+		<h2>3. Architettura software del benchmark</h2>
 		<div class="grid">
 			<div class="panel">
 				<h3>Core</h3>
-				<p><code>Renderer.js</code> inizializza WebGLRenderer, camera prospettica, luci di scena, piano infinito, coordinate della griglia e fog volumetrico. <code>AssetLoader.js</code> carica ed estrae i modelli <code>.glb</code>. <code>Stats.js</code> campiona FPS, frametime, draw calls e primitive disegnate.</p>
+				<p><code>Renderer.js</code> inizializza WebGLRenderer, camera prospettica, luci di scena, piano infinito, coordinate della griglia e fog volumetrico. <code>AssetLoader.js</code> carica ed estrae i modelli <code>.glb</code>. <code>Stats.js</code> campiona FPS, frametime, draw call e primitive disegnate.</p>
 			</div>
 			<div class="panel">
-				<h3>Benchmark Controller</h3>
+				<h3>Benchmark controller</h3>
 				<p><code>BenchmarkController.js</code> gestisce l'automa a stati: sequenza fasi, warm-up della pipeline, finestre di campionamento e ricerca binaria adattiva del limite di saturazione della GPU.</p>
 			</div>
 			<div class="panel">
@@ -296,15 +296,15 @@ loader.load('project/assets/pz/pz.glb', (gltf) => {
 				<p><code>PorygonSwarm.js</code> coordina le repliche (modalità scene-graph vs <code>InstancedMesh</code>). <code>StartOverlay.js</code> gestisce l'interazione iniziale, mentre <code>DataPanel.js</code> aggiorna l'HUD a frequenza disaccoppiata per non inquinare il frame-time.</p>
 			</div>
 			<div class="panel">
-				<h3>Scena Finale (Pile)</h3>
-				<p><code>ResultsPileScene.js</code> visualizza le pile 3D comparative dei modelli accumulati: prima le pile della fase Simple, successivamente le quattro pile complessive al completamento del test Full.</p>
+				<h3>Scena finale (pile)</h3>
+				<p><code>ResultsPileScene.js</code> visualizza le pile 3D comparative dei modelli accumulati: prima le pile della fase simple, successivamente le quattro pile complessive al completamento del test full.</p>
 			</div>
 		</div>
 	</section>
 
 	<!-- SEZIONE 4: ASSET E DISTRIBUZIONE RUNTIME -->
 	<section>
-		<h2>4. Asset e Pubblicazione</h2>
+		<h2>4. asset e pubblicazione</h2>
 		<p>I quattro modelli ottimizzati e caricati a runtime sono posizionati nella cartella di progetto:</p>
 		<ul>
 			<li><code>project/assets/p1/p1.glb</code> (Porygon)</li>
@@ -312,26 +312,26 @@ loader.load('project/assets/pz/pz.glb', (gltf) => {
 			<li><code>project/assets/pz/pz.glb</code> (Porygon-Z)</li>
 			<li><code>project/assets/pokeball/pokeball.glb</code> (Pokéball)</li>
 		</ul>
-		<p>L'ispezione del chunk JSON dei file <code>.glb</code> conferma che tutte le texture diffuse/albedo create da <em>Material Combiner</em> sono inserite direttamente nel binario come <code>bufferView</code> in formato compresso (PNG), azzerando le chiamate HTTP accessorie a runtime. File di lavoro (<code>.blend</code>, sorgenti <code>.fbx</code>/<code>.dae</code>, atlas isolati) sono archiviati senza interferire con il server web.</p>
+		<p>L'ispezione del chunk JSON dei file <code>.glb</code> conferma che tutte le texture diffuse/albedo create da <em>Material Combiner</em> sono inserite direttamente nel binario come <code>bufferView</code> in formato compresso (PNG), azzerando le chiamate HTTP accessorie a runtime. I file di lavoro (<code>.blend</code>, sorgenti <code>.fbx</code>/<code>.dae</code>, atlas isolati) sono archiviati senza interferire con il server web.</p>
 		<p>L'intera applicazione è concepita a <strong>zero-dependency / zero-build step</strong>: utilizza moduli ES6 nativi e percorsi relativi compatibili sia con server statici locali (es. <code>python3 -m http.server</code>) sia con l'hosting su <strong>GitHub Pages</strong>.</p>
 	</section>
 
 	<!-- SEZIONE 5: METODOLOGIA DI MISURA E RICERCA LIMITE -->
 	<section>
-		<h2>5. Metodologia di Misura &amp; Ricerca Adattiva</h2>
+		<h2>5. Metodologia di misura e ricerca adattiva</h2>
 		<p>All'avvio, <code>BenchmarkConfig.js</code> stima il refresh rate effettivo del display campionando <code>requestAnimationFrame</code> e usa il risultato per la scala massima del grafico FPS nell'HUD. La soglia del benchmark resta invece definita da <code>TARGET_FPS</code>, attualmente impostata a <span class="math">30 FPS</span>.</p>
 		<p>A ogni variazione dello sciame viene osservata una finestra temporale: il sistema esegue <span class="math">550 ms</span> di ramp-up, scarta <span class="math">450 ms</span> di warm-up e misura i successivi <span class="math">900 ms</span>. L'interfaccia a schermo viene aggiornata ogni <span class="math">300 ms</span> tramite timer asincrono, disaccoppiato da <code>requestAnimationFrame</code>.</p>
 		<div class="panel">
-			<span class="tag">Warm-up Shader</span>
+			<span class="tag">Warm-up shader</span>
 			<span class="tag">Finestra FPS</span>
-			<span class="tag">Draw Calls</span>
-			<span class="tag">Conta Triangoli</span>
-			<span class="tag">10° Percentile (p10)</span>
+			<span class="tag">Draw call</span>
+			<span class="tag">Conta triangoli</span>
+			<span class="tag">10° percentile (p10)</span>
 		</div>
 		<p>Il sistema stima la stabilità computazionale monitorando contemporaneamente il framerate medio e il decimo percentile: con <code>TARGET_FPS = 30</code>, uno step è stabile quando la media è almeno <span class="math">29.1 FPS</span> e il p10 è almeno <span class="math">27 FPS</span>. Il decimo percentile limita l'influenza di micro-stutter o picchi transitori.</p>
 
-		<h3>Algoritmo di Ricerca Binaria Dinamica</h3>
-		<p>Il motore incrementa il carico geometrico con un passo moltiplicativo fino alla prima rilevazione di instabilità, poi restringe l'intervallo con tentativi intermedi. La progressione dipende dalla fase: Simple parte da 32 copie per la fase naive e da 256 per quella instanced; Full parte rispettivamente da 16 e 128 copie.</p>
+		<h3>Algoritmo di ricerca binaria dinamica</h3>
+		<p>Il motore incrementa il carico geometrico con un passo moltiplicativo fino alla prima rilevazione di instabilità, poi restringe l'intervallo con tentativi intermedi. La progressione dipende dalla fase: simple parte da 32 copie per la fase naive e da 256 per quella instanced; full parte rispettivamente da 16 e 128 copie.</p>
 		<pre><code>Simple naive:     32 copie, crescita x1.9, limite 24000
 Simple instanced: 256 copie, crescita x2,   limite 128000
 Full naive:       16 copie, crescita x1.8, limite 16000
@@ -343,24 +343,24 @@ Massimo stabile: ultimo conteggio che supera media e p10</code></pre>
 
 	<!-- SEZIONE 6: CONFRONTO NAIVE VS INSTANCED -->
 	<section>
-		<h2>6. Confronto Tecnico: Naive vs Instanced</h2>
-		<h3>Approccio Naive (Multi-Object Scene Graph)</h3>
-		<p>Ciascun Pokémon e Pokéball vive come oggetto distinto nella gerarchia Three.js. L'overhead è dominato dalla CPU: per ogni frame il motore esegue il traverse del grafo di scena, ricalcola le matrici di mondo (<code>updateMatrixWorld</code>), invia uniform separate e genera una Draw Call distinta per ciascun oggetto.</p>
+		<h2>6. Confronto tecnico: naive vs instanced</h2>
+		<h3>Approccio naive (multi-object scene graph)</h3>
+		<p>Ciascun Pokémon e Pokéball vive come oggetto distinto nella gerarchia Three.js. L'overhead è dominato dalla CPU: per ogni frame il motore esegue il traverse del grafo di scena, ricalcola le matrici di mondo (<code>updateMatrixWorld</code>), invia uniform separate e genera una draw call distinta per ciascun oggetto.</p>
 
-		<h3>Approccio Instanced (GPU Instancing)</h3>
-		<p>Grazie alla preparazione degli asset a geometria e materiale unico, le copie vengono raggruppate in <code>THREE.InstancedMesh</code>. Nel benchmark misto viene creato un set instanziato per ciascuna geometria/materiale dei quattro modelli, quindi il numero di Draw Call è ridotto rispetto al naive ma non necessariamente pari a una sola. Le matrici locali (<span class="math">4 &times; 4</span>) vengono aggiornate nei buffer instanziati, riducendo il lavoro della CPU e sfruttando il parallelismo della GPU.</p>
+		<h3>Approccio instanced (GPU instancing)</h3>
+		<p>Grazie alla preparazione degli asset a geometria e materiale unico, le copie vengono raggruppate in <code>THREE.InstancedMesh</code>. Nel benchmark misto viene creato un set instanziato per ciascuna geometria/materiale dei quattro modelli, quindi il numero di draw call è ridotto rispetto al naive ma non necessariamente pari a una sola. Le matrici locali (<span class="math">4 &times; 4</span>) vengono aggiornate nei buffer instanziati, riducendo il lavoro della CPU e sfruttando il parallelismo della GPU.</p>
 
-		<h3>Profili: Simple vs Full</h3>
+		<h3>Profili: simple vs full</h3>
 		<p>Il benchmark articola il confronto su due profili grafici:</p>
 		<ul>
-			<li><strong>Simple Profile:</strong> ombre spente, pixel ratio ancorato a 1, materiali <code>MeshBasicMaterial</code> con texture e colore di base (nessun calcolo di illuminazione complessa), ideale per isolare l'overhead dell'architettura Three.js e delle draw calls.</li>
-			<li><strong>Full Profile:</strong> pipeline completa con materiali PBR fotorealistici, ombre dinamiche calcolate con Shadow Map, pavimento opaco con griglia procedurale ed environment map procedurale per i riflessi dei modelli.</li>
+			<li><strong>Profilo simple:</strong> ombre spente, pixel ratio ancorato a 1, materiali <code>MeshBasicMaterial</code> con texture e colore di base (nessun calcolo di illuminazione complessa), ideale per isolare l'overhead dell'architettura Three.js e delle draw call.</li>
+			<li><strong>Profilo full:</strong> pipeline completa con materiali PBR fotorealistici, ombre dinamiche calcolate con shadow map, pavimento opaco con griglia procedurale ed environment map procedurale per i riflessi dei modelli.</li>
 		</ul>
 	</section>
 
 	<!-- SEZIONE 7: DISPOSIZIONE SPAZIALE E PILE FINALI -->
 	<section>
-		<h2>7. Sciame Elicoidale e Visualizzazione a Pile</h2>
+		<h2>7. Sciame elicoidale e visualizzazione a pile</h2>
 		<p>Per distribuire visivamente lo sciame senza occlusioni piatte, le coordinate spaziali seguono un'elica tridimensionale combinata a oscillazioni armoniche:</p>
 		
 		<div class="formula-block">
@@ -371,11 +371,11 @@ Massimo stabile: ultimo conteggio che supera media e p10</code></pre>
 		
 		<p>Uno scattering spaziale a celle angolari/verticali previene sovrapposizioni compenetrate, mentre la nebbia esponenziale sul piano delimitato focalizza l'attenzione sul nucleo dell'azione.</p>
 
-		<h3>Le Pile dei Risultati</h3>
+		<h3>Le pile dei risultati</h3>
 		<p>Al completamento del benchmark, la scena ricompone i valori massimi registrati sotto forma di pile di modelli posizionate direttamente a terra, con un'ombra proiettata correttamente sotto ciascuna istanza:</p>
 		<ul>
-			<li><strong>Fine Test Simple:</strong> due pile affiancate (<em>Naive Simple</em> vs <em>Instanced Simple</em>).</li>
-			<li><strong>Fine Test Full:</strong> quattro pile complessive per apprezzare l'impatto dei materiali PBR e delle luci dinamiche su entrambi gli approcci.</li>
+			<li><strong>Fine test simple:</strong> due pile affiancate (<em>naive simple</em> vs <em>instanced simple</em>).</li>
+			<li><strong>Fine test full:</strong> quattro pile complessive per apprezzare l'impatto dei materiali PBR e delle luci dinamiche su entrambi gli approcci.</li>
 		</ul>
 		<p>Il conteggio reale viene mostrato fluttuante sopra ciascuna colonna, mentre la quantità geometrica fisica disegnata è normalizzata per non saturare la GPU durante la sola visualizzazione dei risultati. Al termine del ciclo di benchmark, la scena abilita la camera in modalità <code>OrbitControls</code>, consentendo all'utente di esaminare liberamente le pile dei Pokémon, l'impatto visivo delle mesh ottimizzate e la reattività del rendering 3D.</p>
 	</section>
