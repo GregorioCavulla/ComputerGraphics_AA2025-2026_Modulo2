@@ -319,7 +319,8 @@ loader.load('project/assets/pz/pz.glb', (gltf) => {
 	<!-- SEZIONE 5: METODOLOGIA DI MISURA E RICERCA LIMITE -->
 	<section>
 		<h2>5. Metodologia di Misura &amp; Ricerca Adattiva</h2>
-		<p>A ogni variazione dello sciame viene osservata una finestra temporale scartando i primi frame di warm-up (compilazione shader e upload buffer). L'interfaccia a schermo viene aggiornata tramite timer asincrono disaccoppiato da <code>requestAnimationFrame</code>.</p>
+		<p>All'avvio, <code>BenchmarkConfig.js</code> stima il refresh rate effettivo del display campionando <code>requestAnimationFrame</code> e usa il risultato per la scala massima del grafico FPS nell'HUD. La soglia del benchmark resta invece definita da <code>TARGET_FPS</code>, attualmente impostata a <span class="math">30 FPS</span>.</p>
+		<p>A ogni variazione dello sciame viene osservata una finestra temporale: il sistema esegue <span class="math">550 ms</span> di ramp-up, scarta <span class="math">450 ms</span> di warm-up e misura i successivi <span class="math">900 ms</span>. L'interfaccia a schermo viene aggiornata ogni <span class="math">300 ms</span> tramite timer asincrono, disaccoppiato da <code>requestAnimationFrame</code>.</p>
 		<div class="panel">
 			<span class="tag">Warm-up Shader</span>
 			<span class="tag">Finestra FPS</span>
@@ -327,18 +328,17 @@ loader.load('project/assets/pz/pz.glb', (gltf) => {
 			<span class="tag">Conta Triangoli</span>
 			<span class="tag">10° Percentile (p10)</span>
 		</div>
-		<p>Il sistema stima la stabilità computazionale monitorando contemporaneamente il framerate medio e il decimo percentile: il benchmark richiede un framerate medio <span class="math">&gt; 60 FPS</span> con <span class="math">p10 &gt; 54 FPS</span>, scongiurando l'influenza di micro-stutter o picchi transitori.</p>
+		<p>Il sistema stima la stabilità computazionale monitorando contemporaneamente il framerate medio e il decimo percentile: con <code>TARGET_FPS = 30</code>, uno step è stabile quando la media è almeno <span class="math">29.1 FPS</span> e il p10 è almeno <span class="math">27 FPS</span>. Il decimo percentile limita l'influenza di micro-stutter o picchi transitori.</p>
 
 		<h3>Algoritmo di Ricerca Binaria Dinamica</h3>
-		<p>Il motore incrementa il carico geometrico con passo moltiplicativo fino alla prima rilevazione di instabilità, per poi convergere sul limite preciso tramite ricerca binaria:</p>
-		<pre><code>Carico iniziale: 24 copie  -> STABILE
-Crescita:        44 copie  -> STABILE
-Crescita:        81 copie  -> STABILE
-Crescita:       150 copie  -> STABILE
-Crescita:       278 copie  -> INSTABILE (&lt; 60 FPS / calo p10)
-------------------------------------------------------------
-Ricerca Binaria nell'intervallo [150, 278]...
-Limite Finale Rilevato: 214 copie al target costante di 60 FPS</code></pre>
+		<p>Il motore incrementa il carico geometrico con un passo moltiplicativo fino alla prima rilevazione di instabilità, poi restringe l'intervallo con tentativi intermedi. La progressione dipende dalla fase: Simple parte da 32 copie per la fase naive e da 256 per quella instanced; Full parte rispettivamente da 16 e 128 copie.</p>
+		<pre><code>Simple naive:     32 copie, crescita x1.9, limite 24000
+Simple instanced: 256 copie, crescita x2,   limite 128000
+Full naive:       16 copie, crescita x1.8, limite 16000
+Full instanced:  128 copie, crescita x2,   limite 72000
+-------------------------------------------------------------
+Instabilità rilevata -&gt; ricerca dell'intervallo stabile/instabile
+Massimo stabile: ultimo conteggio che supera media e p10</code></pre>
 	</section>
 
 	<!-- SEZIONE 6: CONFRONTO NAIVE VS INSTANCED -->
@@ -348,12 +348,12 @@ Limite Finale Rilevato: 214 copie al target costante di 60 FPS</code></pre>
 		<p>Ciascun Pokémon e Pokéball vive come oggetto distinto nella gerarchia Three.js. L'overhead è dominato dalla CPU: per ogni frame il motore esegue il traverse del grafo di scena, ricalcola le matrici di mondo (<code>updateMatrixWorld</code>), invia uniform separate e genera una Draw Call distinta per ciascun oggetto.</p>
 
 		<h3>Approccio Instanced (GPU Instancing)</h3>
-		<p>Grazie alla preparazione degli asset a geometria e materiale unico, l'intera armata viene raggruppata in un'unica <code>THREE.InstancedMesh</code>. Tutte le matrici locali (<span class="math">4 &times; 4</span>) risiedono in un singolo buffer instanziato su memoria VRAM. Il rendering di 100 o 2.000 copie avviene con <strong>1 sola Draw Call</strong>, liberando la CPU e sfruttando il parallelismo hardware della GPU.</p>
+		<p>Grazie alla preparazione degli asset a geometria e materiale unico, le copie vengono raggruppate in <code>THREE.InstancedMesh</code>. Nel benchmark misto viene creato un set instanziato per ciascuna geometria/materiale dei quattro modelli, quindi il numero di Draw Call è ridotto rispetto al naive ma non necessariamente pari a una sola. Le matrici locali (<span class="math">4 &times; 4</span>) vengono aggiornate nei buffer instanziati, riducendo il lavoro della CPU e sfruttando il parallelismo della GPU.</p>
 
 		<h3>Profili: Simple vs Full</h3>
 		<p>Il benchmark articola il confronto su due profili grafici:</p>
 		<ul>
-			<li><strong>Simple Profile:</strong> ombre spente, pixel ratio ancorato a 1, materiali <code>MeshBasicMaterial</code> (nessun calcolo di illuminazione complessa), ideale per isolare l'overhead dell'architettura Three.js e delle draw calls.</li>
+			<li><strong>Simple Profile:</strong> ombre spente, pixel ratio ancorato a 1, materiali <code>MeshBasicMaterial</code> con texture e colore di base (nessun calcolo di illuminazione complessa), ideale per isolare l'overhead dell'architettura Three.js e delle draw calls.</li>
 			<li><strong>Full Profile:</strong> pipeline completa con materiali PBR fotorealistici, ombre dinamiche calcolate con Shadow Map, pavimento opaco con griglia procedurale ed environment map procedurale per i riflessi dei modelli.</li>
 		</ul>
 	</section>
@@ -377,7 +377,7 @@ Limite Finale Rilevato: 214 copie al target costante di 60 FPS</code></pre>
 			<li><strong>Fine Test Simple:</strong> due pile affiancate (<em>Naive Simple</em> vs <em>Instanced Simple</em>).</li>
 			<li><strong>Fine Test Full:</strong> quattro pile complessive per apprezzare l'impatto dei materiali PBR e delle luci dinamiche su entrambi gli approcci.</li>
 		</ul>
-		<p>Il conteggio reale viene mostrato fluttuante sopra ciascuna colonna, mentre la quantità geometrica fisica disegnata è normalizzata per non saturare la GPU durante la sola visualizzazione dei risultati. Al termine del ciclo di benchmark, la camera si sblocca in modalità <code>OrbitControls</code>, consentendo all'utente di esaminare liberamente le pile dei Pokémon, l'impatto visivo delle mesh ottimizzate e la reattività del rendering 3D.</p>
+		<p>Il conteggio reale viene mostrato fluttuante sopra ciascuna colonna, mentre la quantità geometrica fisica disegnata è normalizzata per non saturare la GPU durante la sola visualizzazione dei risultati. Al termine del ciclo di benchmark, la scena abilita la camera in modalità <code>OrbitControls</code>, consentendo all'utente di esaminare liberamente le pile dei Pokémon, l'impatto visivo delle mesh ottimizzate e la reattività del rendering 3D.</p>
 	</section>
 </main>
 </body>

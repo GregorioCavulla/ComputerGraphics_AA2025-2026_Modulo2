@@ -1,5 +1,5 @@
 export const TARGET_FPS = 30; //standard target fps for the benchmark, used to determine if a step is stable or not
-export let CHART_MAX_FPS = 60;
+export let CHART_MAX_FPS = 60; //maximum fps to display in the sparkline chart, will be detected at runtime based on the actual device performance
 
 export function detectChartMaxFps(sampleCount = 45) {
 	return new Promise((resolve) => {

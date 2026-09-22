@@ -161,13 +161,13 @@ export class BenchmarkController {
 function phasesFor(benchmarkMode) {
     if (benchmarkMode === 'full') {
         return [
-            { label: 'naive full', kind: 'mixed', mode: 'naive', initial: 16, max: 8000, multiplier: 1.8 },
-            { label: 'instanced full', kind: 'mixed', mode: 'instanced', initial: 128, max: 36000, multiplier: 2 },
+            { label: 'naive full', kind: 'mixed', mode: 'naive', initial: 16, max: 16000, multiplier: 1.8 },
+            { label: 'instanced full', kind: 'mixed', mode: 'instanced', initial: 128, max: 72000, multiplier: 2 },
         ];
     }
     return [
-        { label: 'naive simple', kind: 'mixed', mode: 'naive', initial: 32, max: 12000, multiplier: 1.9 },
-        { label: 'instanced simple', kind: 'mixed', mode: 'instanced', initial: 256, max: 64000, multiplier: 2 },
+        { label: 'naive simple', kind: 'mixed', mode: 'naive', initial: 32, max: 24000, multiplier: 1.9 },
+        { label: 'instanced simple', kind: 'mixed', mode: 'instanced', initial: 256, max: 128000, multiplier: 2 },
     ];
 }
 
