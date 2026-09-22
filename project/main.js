@@ -8,6 +8,7 @@ import { DataPanel } from './js/ui/DataPanel.js';
 import { ResultsPileScene } from './js/scene/ResultsPileScene.js';
 import { ShadowDebug } from './js/debug/ShadowDebug.js';
 import { PhaseSelector } from './js/debug/PhaseSelector.js';
+import { detectChartMaxFps } from './js/benchmark/BenchmarkConfig.js';
 
 const app = new AppRenderer(document.body);
 const stats = new Stats(app.renderer);
@@ -24,6 +25,8 @@ let introModel = null;
 let resultsPile = null;
 let runOptions = { benchmarkMode: 'simple', finalFull: true };
 let lastTime = performance.now();
+
+await detectChartMaxFps();
 
 stats.setPhase('Caricamento asset', 0, 'Preparazione modelli GLB');
 panel.start();
